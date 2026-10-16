@@ -4,15 +4,26 @@ Ein Pebble-Watchface aus dem Logo des Würzburger Kneipenchors. Der runde Teil d
 („CHOR“ mit Flasche) ist das Zifferblatt, die beiden Ringe sind die Zeiger:
 **außen = Minuten, innen = Stunden** (beide starten bei 12 Uhr, im Uhrzeigersinn).
 
-| Pegel | Lücke | Prost |
-|:---:|:---:|:---:|
-| ![Pegel](docs/round2_0.png) | ![Lücke](docs/round2_1.png) | ![Prost](docs/round2_2.png) |
-| Die Original-Ringe füllen sich, der Rest ist als Punktreihe angedeutet | Ringe komplett wie im Logo, ein Kronkorken in der Lücke zeigt die Zeit | Glatte Bögen, die Stunden in Biergelb |
+<table>
+  <tr>
+    <th width="33%">Pegel</th>
+    <th width="33%">Lücke</th>
+    <th width="33%">Prost</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/round2_0.png" alt="Pegel" width="240"></td>
+    <td align="center"><img src="docs/round2_1.png" alt="Lücke" width="240"></td>
+    <td align="center"><img src="docs/round2_2.png" alt="Prost" width="240"></td>
+  </tr>
+  <tr>
+    <td>Die Original-Ringe füllen sich, der Rest ist als Punktreihe angedeutet</td>
+    <td>Ringe komplett wie im Logo, ein Kronkorken in der Lücke zeigt die Zeit</td>
+    <td>Glatte Bögen, die Stunden in Biergelb</td>
+  </tr>
+</table>
 
 Läuft auf allen Pebbles: Pebble Classic/Steel, Time, Time Round, Pebble 2, 2 Duo, Time 2 und Round 2.
 Die Screenshots stammen aus dem Emulator und zeigen alle 10:08 Uhr.
-
-![Alle Modelle](docs/alle_modelle.png)
 
 ## Einstellungen
 
