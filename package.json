@@ -1,0 +1,45 @@
+{
+  "name": "wkc-watchface",
+  "author": "Daniel",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "WKC Kneipenchor",
+    "uuid": "b0eccc1b-3959-4e42-a33e-15e337f98356",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint",
+      "gabbro"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [],
+    "resources": {
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "LOGO",
+          "file": "images/logo.png",
+          "memoryFormat": "Smallest",
+          "spaceOptimization": "storage"
+        },
+        {
+          "type": "bitmap",
+          "name": "BEER",
+          "file": "images/beer.png",
+          "memoryFormat": "Smallest",
+          "targetPlatforms": ["basalt", "chalk", "emery", "gabbro"]
+        }
+      ]
+    }
+  }
+}
