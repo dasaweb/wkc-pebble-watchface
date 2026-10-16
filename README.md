@@ -21,6 +21,8 @@ In der Pebble-App beim Watchface auf **Einstellungen** tippen:
 - **Zifferblatt:** Pegel, Lücke oder Prost
 - **Akkustand als Bier in der Flasche:** ein/aus (für alle drei Designs)
 
+<img src="docs/einstellungen.png" alt="Einstellungsseite" width="300">
+
 Die Flasche wird wie eine echte Flasche gefüllt. Bei 80 % steht das Bier am Ende des
 Flaschenhalses, darunter sinkt es gleichmäßig bis zum Boden. Auch bei 100 % bleibt oben
 etwas Luft.
@@ -59,6 +61,7 @@ pebble install --cloudpebble
 | `src/c/main.c` | Watchface (Zeichnen, Einstellungen empfangen) |
 | `src/c/bottle.h` | Füllstände der Flasche, generiert |
 | `src/pkjs/config.js` | Einstellungsseite ([Clay](https://github.com/pebble-dev/clay)) |
+| `src/pkjs/screenshots.js` | Vorschaubilder für die Einstellungsseite, generiert |
 | `tools/make_assets.py` | erzeugt die Grafiken aus dem Logo |
 | `logo/` | Original-Logo als SVG |
 
@@ -72,6 +75,9 @@ die Textur bleibt dabei erhalten. Pro Plattform schreibt es `resources/images/lo
 ```sh
 python3 tools/make_assets.py logo/Kneipenchor_logo_fertig.svg
 ```
+
+Die Vorschaubilder der Einstellungsseite kommen aus `docs/round2_*.png` und werden mit
+`python3 tools/make_config_images.py` neu eingebettet.
 
 Für Screenshots mit fester Uhrzeit (10:08) oben in `src/c/main.c` `#define WKC_DEMO` setzen.
 Einstellungen lassen sich im Emulator ohne Browser setzen:

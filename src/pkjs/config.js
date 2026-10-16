@@ -1,3 +1,14 @@
+var shots = require('./screenshots');
+
+function option(value, index, name, text) {
+  return {
+    label: '<img src="' + shots[index] + '" alt="" ' +
+      'style="display:block;width:130px;height:130px;margin:4px 0 8px">' +
+      '<strong>' + name + '</strong> – ' + text,
+    value: value
+  };
+}
+
 module.exports = [
   {
     "type": "heading",
@@ -20,9 +31,9 @@ module.exports = [
         "label": "Zifferblatt",
         "defaultValue": "0",
         "options": [
-          { "label": "Pegel – die Ringe füllen sich", "value": "0" },
-          { "label": "Lücke – Kronkorken in der Ringlücke", "value": "1" },
-          { "label": "Prost – glatte Bögen", "value": "2" }
+          option("0", 0, "Pegel", "die Ringe füllen sich"),
+          option("1", 1, "Lücke", "Kronkorken in der Ringlücke"),
+          option("2", 2, "Prost", "glatte Bögen")
         ]
       },
       {
