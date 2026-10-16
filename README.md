@@ -97,6 +97,23 @@ Einstellungen lassen sich im Emulator ohne Browser setzen:
 pebble send-app-message --emulator gabbro --string 10000=1 --int 10001=1   # Lücke, Akku an
 ```
 
+## Hinweise für die Weiterentwicklung
+
+- **Version:** Vor `pebble build` die Version in `package.json` erhöhen. Die Pebble-App zeigt
+  die Version an, die beim Bauen eingetragen war.
+- **Release:** Die neue `.pbw` als `WKC-Kneipenchor.pbw` an ein GitHub-Release hängen. Dann
+  zeigt der Link `releases/latest/download/WKC-Kneipenchor.pbw` immer auf die neueste Version.
+- **Uhrzeit im Emulator:** `pebble emu-set-time` wirkt erst beim nächsten Minutenwechsel.
+  Für Screenshots deshalb `WKC_DEMO` verwenden.
+- **Farben:** Die Displays zeigen Farben gedämpfter als ihr Name. `GColorChromeYellow` wirkt
+  zum Beispiel lachsfarben, deshalb ist das Bier `GColorYellow`. Neue Farben im Emulator prüfen,
+  der die echten Displays nachbildet.
+- **Einstellungen:** Das alte npm-Paket `pebble-clay` kennt weder Round 2 noch 2 Duo.
+  Deshalb wird `@rebble/clay` verwendet.
+- **Kein Bild in der Pebble-App:** Seitlich geladene Watchfaces zeigen unter „My watchfaces“
+  kein Vorschaubild. Bilder gibt es nur über den Pebble-Appstore (`pebble publish`). Vorher mit
+  dem Chor klären, ob das Logo dort erscheinen darf.
+
 ## Das Pebble-Universum
 
 - [repebble.com](https://repebble.com): Pebble von Core Devices (Pebble 2 Duo, Time 2, Round 2)
