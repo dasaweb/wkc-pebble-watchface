@@ -1,10 +1,14 @@
 {
-  "name": "wkc-watchface",
+  "name": "pebble-wkc-watchface",
   "author": "Daniel",
-  "version": "1.0.0",
-  "keywords": ["pebble-app"],
+  "version": "1.1.0",
+  "keywords": [
+    "pebble-app"
+  ],
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@rebble/clay": "^1.1.0"
+  },
   "pebble": {
     "displayName": "WKC Kneipenchor",
     "uuid": "b0eccc1b-3959-4e42-a33e-15e337f98356",
@@ -22,7 +26,10 @@
     "watchapp": {
       "watchface": true
     },
-    "messageKeys": [],
+    "messageKeys": [
+      "STYLE",
+      "BATTERY"
+    ],
     "resources": {
       "media": [
         {
@@ -36,10 +43,24 @@
           "type": "bitmap",
           "name": "BEER",
           "file": "images/beer.png",
+          "memoryFormat": "Smallest"
+        },
+        {
+          "type": "bitmap",
+          "name": "RING",
+          "file": "images/ring.png",
           "memoryFormat": "Smallest",
-          "targetPlatforms": ["basalt", "chalk", "emery", "gabbro"]
+          "targetPlatforms": [
+            "basalt",
+            "chalk",
+            "emery",
+            "gabbro"
+          ]
         }
       ]
-    }
+    },
+    "capabilities": [
+      "configurable"
+    ]
   }
 }

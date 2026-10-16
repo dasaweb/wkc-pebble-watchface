@@ -6,7 +6,9 @@
 - begradigt die handgezeichneten Ringe auf exakt konzentrische Kreise
   (die Grunge-Textur bleibt erhalten), damit sie sich im Code als
   Zeiger ausschneiden lassen
-- schreibt pro Plattform logo.png (+ beer.png fuer Farbuhren)
+- schreibt pro Plattform logo.png, beer.png (Akku-Fuellung) und auf
+  Farbuhren ring.png (eingefaerbter Stundenring)
+- schreibt die Fuellstaende der Flasche nach src/c/bottle.h
 
 Aufruf: python3 tools/make_assets.py logo/Kneipenchor_logo_fertig.svg
 """
@@ -150,41 +152,80 @@ def main(svg):
         pad[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0] = mask[sy0:sy1, sx0:sx1]
         return pad
 
-    rings = straighten(inner, cx, cy, R_INNER, (S, S)) | \
-            straighten(outer, cx, cy, R_OUTER, (S, S))
-    full = crop(content) | rings
+    ring_in = straighten(inner, cx, cy, R_INNER, (S, S))
+    ring_out = straighten(outer, cx, cy, R_OUTER, (S, S))
+    full = crop(content) | ring_in | ring_out
     beer = crop(beer)
+    write_bottle_header(beer)
 
     os.makedirs(OUT, exist_ok=True)
     meta = {}
     for plat, (d, color) in PLATFORMS.items():
-        img = Image.fromarray((full * 255).astype(np.uint8)).resize((d, d), Image.LANCZOS)
+        img = downscale(full, d)
         if color:
-            a = np.array(img).astype(float) / 255
-            a = np.round(a * 3) / 3 * 255  # 4 Graustufen
-            img = Image.fromarray(a.astype(np.uint8)).convert("RGB")
+            a = np.round(img / 255 * 3) / 3 * 255  # 4 Graustufen
+            Image.fromarray(a.astype(np.uint8)).convert("RGB").save(
+                os.path.join(OUT, f"logo~{plat}.png"))
+            # Stundenring einzeln, damit er sich einfaerben laesst
+            save_tinted(downscale(ring_in, d) > 110, f"ring~{plat}.png")
         else:
-            img = img.point(lambda v: 255 if v > 110 else 0).convert("1")
-        img.save(os.path.join(OUT, f"logo~{plat}.png"))
-        if color:
-            b = Image.fromarray((beer * 255).astype(np.uint8)).resize((d, d), Image.LANCZOS)
-            alpha = np.array(b)
-            alpha = np.where(alpha > 100, 255, 0).astype(np.uint8)
-            # Rand der Flasche nicht ueberdecken
-            alpha = ndimage.binary_erosion(alpha > 0, iterations=1).astype(np.uint8) * 255
-            rgba = np.zeros((d, d, 4), np.uint8)
-            rgba[..., :3] = BEER
-            rgba[..., 3] = alpha
-            Image.fromarray(rgba, "RGBA").save(os.path.join(OUT, f"beer~{plat}.png"))
-            ys = np.where(alpha.any(axis=1))[0]
-            meta[plat] = {"beer_top": int(ys.min()), "beer_bottom": int(ys.max())}
-        scale = d / S
-        meta.setdefault(plat, {}).update({
-            "size": d,
-            "r_inner": round(R_INNER * scale, 2),
-            "r_outer": round(R_OUTER * scale, 2),
-        })
-    print(json.dumps(meta, indent=1))
+            save_bw(img > 110, f"logo~{plat}.png")
+
+        # Bierfuellung, 1px eingerueckt, damit der Flaschenrand sichtbar bleibt
+        b = ndimage.binary_erosion(downscale(beer, d) > 100, iterations=1)
+        save_tinted(b, f"beer~{plat}.png", BEER if color else (255, 255, 255))
+        meta[plat] = {"size": d}
+    print(json.dumps(meta))
+
+
+def downscale(mask, d):
+    img = Image.fromarray((mask * 255).astype(np.uint8)).resize((d, d), Image.LANCZOS)
+    return np.array(img).astype(float)
+
+
+def save_tinted(mask, name, rgb=BEER):
+    rgba = np.zeros(mask.shape + (4,), np.uint8)
+    rgba[..., :3] = rgb
+    rgba[..., 3] = mask * 255
+    Image.fromarray(rgba, "RGBA").save(os.path.join(OUT, name))
+
+
+def save_bw(mask, name):
+    Image.fromarray((mask * 255).astype(np.uint8)).convert("1").save(os.path.join(OUT, name))
+
+
+def write_bottle_header(beer):
+    """Fuellstaende der Flasche in Promille der Bitmap-Hoehe -> src/c/bottle.h
+
+    0 % = Flaschenboden, 80 % = Ende des Flaschenhalses, 100 % = etwas
+    unterhalb der Muendung (oben bleibt Luft wie bei einer echten Flasche).
+    """
+    S = beer.shape[0]
+    rows = np.where(beer.any(axis=1))[0]
+    top, bottom = rows.min(), rows.max()
+    width = beer.sum(axis=1)
+    upper = np.arange(top, top + int(0.4 * (bottom - top)))
+    neck_w = np.median(width[upper])
+    # Muendung: breiterer Rand ganz oben
+    lip = top
+    while width[lip + 1] > neck_w * 1.25 or lip < top + 3:
+        lip += 1
+    # Halsende: ab hier wird die Flasche deutlich breiter (Schulter)
+    neck_end = upper[-1]
+    while width[neck_end] > neck_w * 1.15:
+        neck_end -= 1
+    while width[neck_end + 1] <= neck_w * 1.15:
+        neck_end += 1
+    full = lip + 0.35 * (neck_end - lip)
+    pm = lambda y: int(round(y * 1000 / S))
+    path = os.path.join(HERE, "..", "src", "c", "bottle.h")
+    with open(path, "w") as f:
+        f.write("// Generiert von tools/make_assets.py – Fuellstaende der Flasche\n"
+                "// in Promille der Logo-Bitmap-Hoehe (0 = oben)\n"
+                "#pragma once\n"
+                f"#define BOTTLE_FULL  {pm(full)}  // 100 %: etwas Luft im Hals\n"
+                f"#define BOTTLE_NECK  {pm(neck_end)}  // 80 %: Ende des Flaschenhalses\n"
+                f"#define BOTTLE_EMPTY {pm(bottom)}  // 0 %: Flaschenboden\n")
 
 
 if __name__ == "__main__":

@@ -4,15 +4,17 @@
  * Basis ist der runde Teil des Logos ("CHOR" mit Flasche). Die beiden Ringe
  * sind die Zeiger: außen = Minuten, innen = Stunden.
  *
- * Drei Designs, Wechsel per Handgelenk-Schütteln (wird gespeichert):
+ * Drei Designs, Auswahl in den Watchface-Einstellungen (Pebble-App):
  *   0 "Pegel"  – die Ringe füllen sich im Uhrzeigersinn (Original-Textur)
  *   1 "Lücke"  – die Ringe sind komplett, eine Lücke mit Kronkorken zeigt die Zeit
- *   2 "Prost"  – glatte Bögen, Stunden in Bier-Gelb, die Flasche zeigt den Akku
+ *   2 "Prost"  – glatte Bögen, Stunden in Bier-Gelb
+ * Optional zeigt die Flasche den Akkustand als Bierpegel.
  */
 #include <pebble.h>
+#include "bottle.h"
 
 #define STYLE_COUNT 3
-#define PERSIST_STYLE 1
+#define PERSIST_SETTINGS 2
 
 // Geometrie relativ zum Logo-Radius (aus tools/make_assets.py, R_CROP = 850)
 #define F_CONTENT  706   // Inhalt endet hier
@@ -22,17 +24,20 @@
 #define F_HALF      25   // halbe Ringbreite
 #define F_CROP     850
 
-// Bierfüllung (Flasche) in Anteilen der Bitmap-Höhe, in Promille
-#define BEER_TOP    146
-#define BEER_BOTTOM 842
+typedef struct {
+  uint8_t style;
+  bool battery;
+} Settings;
+
+static Settings s_settings = { .style = 0, .battery = true };
 
 static Window *s_window;
 static Layer *s_canvas;
 static GBitmap *s_logo;
-#ifdef PBL_COLOR
 static GBitmap *s_beer;
+#ifdef PBL_COLOR
+static GBitmap *s_ring;
 #endif
-static int s_style;
 static int s_battery = 100;
 
 // "Bier": GColorChromeYellow wirkt auf den echten Displays lachsfarben, Yellow passt
@@ -84,14 +89,29 @@ static void draw_dots(GContext *ctx, GPoint c, int r, int32_t from, int step_deg
 }
 
 static void draw_cap(GContext *ctx, GPoint c, int r, int32_t angle, int size) {
-  GPoint p = polar(c, r, angle);
   graphics_context_set_fill_color(ctx, ACCENT);
-  graphics_fill_circle(ctx, p, size);
-#ifdef PBL_COLOR
-  graphics_context_set_stroke_color(ctx, GColorWindsorTan);
-  graphics_context_set_stroke_width(ctx, 1);
-  graphics_draw_circle(ctx, p, size - 2);
-#endif
+  graphics_fill_circle(ctx, polar(c, r, angle), size);
+}
+
+// Bierpegel in Promille der Bitmap-Höhe: 0 % = Boden, 80 % = Ende des Halses,
+// 100 % = knapp unter der Mündung. Dazwischen jeweils linear.
+static int beer_level_pm(int percent) {
+  if (percent >= 80) {
+    return BOTTLE_NECK - (BOTTLE_NECK - BOTTLE_FULL) * (percent - 80) / 20;
+  }
+  return BOTTLE_EMPTY - (BOTTLE_EMPTY - BOTTLE_NECK) * percent / 80;
+}
+
+static void draw_beer(GContext *ctx, GPoint origin, int d) {
+  int level = d * beer_level_pm(s_battery) / 1000;
+  if (level >= d) {
+    return;
+  }
+  GBitmap *sub = gbitmap_create_as_sub_bitmap(s_beer, GRect(0, level, d, d - level));
+  graphics_context_set_compositing_mode(ctx, GCompOpSet);
+  graphics_draw_bitmap_in_rect(ctx, sub, GRect(origin.x, origin.y + level, d, d - level));
+  graphics_context_set_compositing_mode(ctx, GCompOpAssign);
+  gbitmap_destroy(sub);
 }
 
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
@@ -124,8 +144,16 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
   graphics_draw_bitmap_in_rect(ctx, s_logo, GRect(origin.x, origin.y, d, d));
 
   graphics_context_set_fill_color(ctx, GColorBlack);
-  switch (s_style) {
+  switch (s_settings.style) {
     case 0: {  // Pegel: verstrichener Teil bleibt stehen, der Rest wird gelöscht
+#ifdef PBL_COLOR
+      // Stundenring durch die eingefärbte Variante ersetzen
+      fill_band(ctx, c, r_content, r_split, 0, TRIG_MAX_ANGLE);
+      graphics_context_set_compositing_mode(ctx, GCompOpSet);
+      graphics_draw_bitmap_in_rect(ctx, s_ring, GRect(origin.x, origin.y, d, d));
+      graphics_context_set_compositing_mode(ctx, GCompOpAssign);
+      graphics_context_set_fill_color(ctx, GColorBlack);
+#endif
       fill_band(ctx, c, r_content, r_split, a_hour, TRIG_MAX_ANGLE);
       fill_band(ctx, c, r_split, R + 2, a_min, TRIG_MAX_ANGLE);
       int dot = d >= 200 ? 1 : 0;
@@ -141,7 +169,7 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
       draw_cap(ctx, c, r_outer, a_min, half + 2);
       break;
     }
-    default: {  // Prost: glatte Bögen, Flasche = Akkustand
+    default: {  // Prost: glatte Bögen
       fill_band(ctx, c, r_content, R + 2, 0, TRIG_MAX_ANGLE);
 #ifdef PBL_COLOR
       graphics_context_set_stroke_color(ctx, GColorDarkGray);
@@ -159,21 +187,12 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
       fill_band(ctx, c, r_outer - half, r_outer + half, 0, a_min);
       graphics_fill_circle(ctx, polar(c, r_outer, a_min), half);
       graphics_fill_circle(ctx, polar(c, r_outer, 0), half);
-
-#ifdef PBL_COLOR
-      int top = d * BEER_TOP / 1000;
-      int bottom = d * BEER_BOTTOM / 1000;
-      int level = bottom - (bottom - top) * s_battery / 100;
-      GBitmap *sub = gbitmap_create_as_sub_bitmap(s_beer,
-                                                  GRect(0, level, d, d - level));
-      graphics_context_set_compositing_mode(ctx, GCompOpSet);
-      graphics_draw_bitmap_in_rect(ctx, sub,
-                                   GRect(origin.x, origin.y + level, d, d - level));
-      graphics_context_set_compositing_mode(ctx, GCompOpAssign);
-      gbitmap_destroy(sub);
-#endif
       break;
     }
+  }
+
+  if (s_settings.battery) {
+    draw_beer(ctx, origin, d);
   }
 }
 
@@ -186,9 +205,22 @@ static void battery_handler(BatteryChargeState state) {
   layer_mark_dirty(s_canvas);
 }
 
-static void tap_handler(AccelAxisType axis, int32_t direction) {
-  s_style = (s_style + 1) % STYLE_COUNT;
-  persist_write_int(PERSIST_STYLE, s_style);
+static int32_t tuple_int(Tuple *t) {
+  // Clay schickt Auswahlfelder als Text, Schalter als Zahl
+  return t->type == TUPLE_CSTRING ? atoi(t->value->cstring) : t->value->int32;
+}
+
+static void inbox_received_handler(DictionaryIterator *iter, void *context) {
+  Tuple *style = dict_find(iter, MESSAGE_KEY_STYLE);
+  if (style) {
+    int32_t v = tuple_int(style);
+    s_settings.style = (v >= 0 && v < STYLE_COUNT) ? v : 0;
+  }
+  Tuple *battery = dict_find(iter, MESSAGE_KEY_BATTERY);
+  if (battery) {
+    s_settings.battery = tuple_int(battery) != 0;
+  }
+  persist_write_data(PERSIST_SETTINGS, &s_settings, sizeof(s_settings));
   layer_mark_dirty(s_canvas);
 }
 
@@ -204,12 +236,15 @@ static void window_unload(Window *window) {
 }
 
 static void init(void) {
-  s_style = persist_exists(PERSIST_STYLE) ? persist_read_int(PERSIST_STYLE) : 0;
-  if (s_style < 0 || s_style >= STYLE_COUNT) s_style = 0;
+  if (persist_exists(PERSIST_SETTINGS)) {
+    persist_read_data(PERSIST_SETTINGS, &s_settings, sizeof(s_settings));
+    if (s_settings.style >= STYLE_COUNT) s_settings.style = 0;
+  }
 
   s_logo = gbitmap_create_with_resource(RESOURCE_ID_LOGO);
-#ifdef PBL_COLOR
   s_beer = gbitmap_create_with_resource(RESOURCE_ID_BEER);
+#ifdef PBL_COLOR
+  s_ring = gbitmap_create_with_resource(RESOURCE_ID_RING);
 #endif
 
   s_window = window_create();
@@ -223,17 +258,19 @@ static void init(void) {
   s_battery = battery_state_service_peek().charge_percent;
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   battery_state_service_subscribe(battery_handler);
-  accel_tap_service_subscribe(tap_handler);
+
+  app_message_register_inbox_received(inbox_received_handler);
+  app_message_open(128, 0);
 }
 
 static void deinit(void) {
-  accel_tap_service_unsubscribe();
   battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
   window_destroy(s_window);
   gbitmap_destroy(s_logo);
-#ifdef PBL_COLOR
   gbitmap_destroy(s_beer);
+#ifdef PBL_COLOR
+  gbitmap_destroy(s_ring);
 #endif
 }
 
